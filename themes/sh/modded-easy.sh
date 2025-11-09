@@ -16,7 +16,7 @@ function prompt_command() {
 		user_color="${cyan?}"
 	fi
 	scm_prompt_info="$(scm_prompt_info)"
-	PS1="\[\e]0;\u@\h: \w\a\]${user_color}\u@\h ${bold_black?}\w\n${reset_color?}${scm_prompt_info}${cursor_color}λ ${normal?}"
+	PS1="\[\e]0;\u@localhost: \w\a\]${user_color}\u@localhost ${bold_black?}\w\n${reset_color?}${scm_prompt_info}${cursor_color}λ ${normal?}"
 }
 
 safe_append_prompt_command prompt_command
