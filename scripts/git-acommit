@@ -1,7 +1,7 @@
 #!/bin/bash
 # Name: git-acommit
 # Purpose: clean commit messages with angular convention
-# Deps: git, git-cz
+# Deps: git
 # Author: Ahmad Asaad
 
 Help()
@@ -12,9 +12,9 @@ git advanced commit
 
 when no option is selected commit staged files only.
 
-  -t  <type>       commit type (e.g. feat, docs, fix, etc..)
+  -t  <type>       commit type (e.g. feat, docs, fix, gen, etc..)
   -s  <scope>      commit scope (e.g. chore(ci), chore(build, etc..)
-  -b  <body>        commit body
+  -b  <body>       commit body
   -B  <change>     breaking change
   -m  <message>    commit message
   -c               commit all changed files (Staged & unstaged)
@@ -32,71 +32,75 @@ rename_word=rename
 
 
 while getopts ":t:s:b:B:m:capihC" option; do
-    case $option in
-	t)
-	    commit_type="$OPTARG"
-	    ;;
-	s)
-	    commit_scope="$OPTARG"
-	    ;;
-	b)
-	    commit_body="$OPTARG"
-	    ;;
-	B)
-	    commit_change="$OPTARG"
-	    ;;
-      m)
-	    commit_message="$OPTARG"
-	    ;;
-      c)
-	 git add -u
-	 ;;
-      a) # commit all changes
-         git add -A
-         ;;
-      h)
-	 Help
-	 exit
-	 ;;
-      p)
-	  declare -A extensions=(
-	      ["rs"]="Rust"
-	      ["py"]="Python"
-	      ["cpp"]="C++"
-	      ["java"]="Java"
-	      ["hs"]="Haskell"
-	  )
-	  path=$(git diff --cached --name-only)
-	  file=$(basename $path)
-	  problem=${file%.*}
-	  extension=${file##*.}
-	  if [[ $extension == "java" ]]
-	  then
-	      problem=${problem:1}
-	  fi
-	  message="Solve ${problem} in ${extensions[$extension]}"
-	  git add $path
-	  git commit -m "$message"
-	  exit
-	  ;;
-      i)
-	  git add -A
-	  git commit -m "Initial commit"
-	  exit
-	  ;;
-      C)
-	  create_word=Create
-	  update_word=Update
-	  delete_word=Delete
-	  rename_word=Rename
-	  ;;
-      \?) # Invalid option
-	 echo "Invalid option"
-         Help
-         exit
-	 ;;
-   esac
+  case $option in
+    t)
+        commit_type="$OPTARG"
+        ;;
+    s)
+        commit_scope="$OPTARG"
+        ;;
+    b)
+        commit_body="$OPTARG"
+        ;;
+    B)
+        commit_change="$OPTARG"
+        ;;
+    m)
+        commit_message="$OPTARG"
+        ;;
+    c)
+        git add -u
+        ;;
+    a) # commit all changes
+        git add -A
+        ;;
+    h)
+        Help
+        exit
+        ;;
+    p)
+        declare -A extensions=(
+          ["rs"]="Rust"
+          ["py"]="Python"
+          ["cpp"]="C++"
+          ["java"]="Java"
+          ["hs"]="Haskell"
+        )
+        path=$(git diff --cached --name-only)
+        file=$(basename $path)
+        problem=${file%.*}
+        extension=${file##*.}
+        if [[ $extension == "java" ]]
+        then
+            problem=${problem:1}
+        fi
+        message="Solve ${problem} in ${extensions[$extension]}"
+        git add $path
+        git commit -m "$message"
+        exit
+        ;;
+    i)
+        git add -A
+        git commit -m "Initial commit"
+        exit
+        ;;
+    C)
+      create_word=Create
+      update_word=Update
+      delete_word=Delete
+      rename_word=Rename
+      ;;
+    \?) # Invalid option
+      >&2 echo "Error: Invalid option"
+      Help
+      exit
+      ;;
+  esac
 done
+
+shift $((OPTIND - 1))
+
+[[ "$@" -ne "" ]] && git add $@
 
 # Check for any changes in the repository
 changes=$(git status --porcelain)
@@ -107,86 +111,116 @@ if [ -z "$changes" ]; then
 fi
 
 if [ -z "$commit_message" ]; then
-# Arrays to hold file lists
-declare -a create_files
-declare -a update_files
-declare -a delete_files
-declare -a rename_old_files
-declare -a rename_new_files
+  # Arrays to hold file lists
+  declare -a create_files
+  declare -a update_files
+  declare -a delete_files
+  declare -a rename_old_files
+  declare -a rename_new_files
 
-# Loop through each change and categorize the files
-while IFS= read -r line; do
-  status=$(echo "$line" | cut -c1-2)
-  file=$(echo "$line" | cut -c4-)
-  
-  case $status in
-    A*)
-      create_files+=("$file")
-      ;;
-    M*)
-      update_files+=("$file")
-      ;;
-    D*)
-      delete_files+=("$file")
-      ;;
-    R*)
-      old_file=$(echo "$line" | awk '{print $2}')
-      new_file=$(echo "$line" | awk '{print $4}')
-      rename_old_files+=("$old_file")
-      rename_new_files+=("$new_file")
-      ;;
-    *)
-      continue
-      ;;
-  esac
+  # Loop through each change and categorize the files
+  while IFS= read -r line; do
+    status=$(echo "$line" | cut -c1-2)
+    file=$(echo "$line" | cut -c4-)
+    
+    case $status in
+      A*)
+        create_files+=("$file")
+        ;;
+      M*)
+        update_files+=("$file")
+        ;;
+      D*)
+        delete_files+=("$file")
+        ;;
+      R*)
+        old_file=$(echo "$line" | awk '{print $2}')
+        new_file=$(echo "$line" | awk '{print $4}')
+        rename_old_files+=("$old_file")
+        rename_new_files+=("$new_file")
+        ;;
+      *)
+        continue
+        ;;
+    esac
 
-done <<< "$changes"
+  done <<< "$changes"
 
-# Build the commit message
-commit_message=""
+  # Build the commit message
+  commit_message=""
 
-if [ ${#create_files[@]} -gt 0 ]; then
-    create_message="$create_word "
-    for i in ${!create_files[@]}; do
-	create_message+="${create_files[$i]}, "
+  if [ ${#create_files[@]} -gt 0 ]; then
+      create_message="$create_word "
+      for i in ${!create_files[@]}; do
+    create_message+="${create_files[$i]}, "
+      done
+      commit_message+="$create_message"
+  fi
+
+  if [ ${#update_files[@]} -gt 0 ]; then
+      update_message="$update_word "
+      for i in ${!update_files[@]}; do
+          update_message+="${update_files[$i]}, "
+      done
+      commit_message+="$update_message"
+  fi
+
+  if [ ${#delete_files[@]} -gt 0 ]; then
+      delete_message="$delete_word "
+      for i in ${!delete_files[@]}; do
+        delete_message+="${delete_files[$i]}, "
+      done
+      commit_message+="$delete_message"
+  fi
+
+  if [ ${#rename_old_files[@]} -gt 0 ]; then
+    rename_message="$rename_word "
+    for i in "${!rename_old_files[@]}"; do
+      old_file="${rename_old_files[$i]}"
+      new_file="${rename_new_files[$i]}"
+      rename_message+="$old_file to $new_file, "
     done
-    commit_message+="$create_message"
-fi
+    commit_message+="$rename_message"
+  fi
 
-if [ ${#update_files[@]} -gt 0 ]; then
-    update_message="$update_word "
-    for i in ${!update_files[@]}; do
-        update_message+="${update_files[$i]}, "
-    done
-    commit_message+="$update_message"
-fi
-
-if [ ${#delete_files[@]} -gt 0 ]; then
-    delete_message="$delete_word "
-    for i in ${!delete_files[@]}; do
-	delete_message+="${delete_files[$i]}, "
-    done
-    commit_message+="$delete_message"
-fi
-
-if [ ${#rename_old_files[@]} -gt 0 ]; then
-  rename_message="$rename_word "
-  for i in "${!rename_old_files[@]}"; do
-    old_file="${rename_old_files[$i]}"
-    new_file="${rename_new_files[$i]}"
-    rename_message+="$old_file to $new_file, "
-  done
-  commit_message+="$rename_message"
-fi
-
-# Remove trailing comma and space
-commit_message=${commit_message%, }
+  # Remove trailing comma and space
+  commit_message=${commit_message%, }
 
 fi
+
+# Build git commit arguments array instead of string
+declare -a git_args=("commit" "-m")
+
+# Add type:
+commit_msg="${commit_type:-gen}"
+
+# Add scope:
+[ -n "$commit_scope" ] && commit_msg+="($commit_scope)"
+
+# Add breaking change mark
+[ -n "$commit_change" ] && commit_msg+="!"
+
+# Add message:
+[ -z "$commit_message" ] && >&2 echo "Error: commit message is empty" && exit 1
+commit_msg+=": $commit_message"
+
+git_args+=("$commit_msg")
+
+# Add git body prompt
+[ -n "$commit_body" ] && git_args+=("-m" "$commit_body")
+
+# Add breaking change
+[ -n "$commit_change" ] && git_args+=("-m" "BREAKING CHANGE: $commit_change")
 
 # Commit the changes
-git cz --disable-emoji --non-interactive --type="$commit_type" --scope="$commit_scope" --subject="$commit_message" --body="$commit_body" --breaking="$commit_change"
+git "${git_args[@]}"
 
 # for debugging
-#echo "Committed with message:"
-#echo "$commit_message"
+# echo "Commit message:"
+# echo -e "$commit_message"
+# echo "Commit body:"
+# echo -e "$commit_body"
+# echo "Commit breaking change:"
+# echo -e "$commit_change"
+# echo "Git prompt:"
+# echo -e "$git_prompt"
