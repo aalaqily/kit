@@ -1,3 +1,13 @@
+[General]
+Blur=false
+ColorRandomization=false
+Description=Winter Night
+FillStyle=Tile
+Opacity=1
+Wallpaper=
+WallpaperFlipType=NoFlip
+WallpaperOpacity=1
+
 [Background]
 Color=16,20,33
 
@@ -87,14 +97,3 @@ Color=255,251,246
 
 [ForegroundIntense]
 Color=255,255,255
-
-[General]
-Anchor=Ahmad Asaad
-Blur=false
-ColorRandomization=false
-Description=Winter Night
-FillStyle=Tile
-Opacity=1
-Wallpaper=
-WallpaperFlipType=NoFlip
-WallpaperOpacity=1
